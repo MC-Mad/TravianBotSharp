@@ -25,10 +25,8 @@
             if (tab is null) return Retry.NotFound($"{tabIndex}", "tab");
             if (BuildingTabParser.IsTabActive(tab)) return Result.Ok();
 
-            bool tabActived(IWebDriver driver)
+            bool tabActived(HtmlDocument doc)
             {
-                var doc = new HtmlDocument();
-                doc.LoadHtml(driver.PageSource);
                 var count = BuildingTabParser.CountTab(doc);
                 if (tabIndex > count) return false;
                 var tab = BuildingTabParser.GetTab(doc, tabIndex);
@@ -37,10 +35,7 @@
                 return true;
             }
 
-            Result result;
-            result = await browser.Click(By.XPath(tab.XPath), cancellationToken);
-            if (result.IsFailed) return result;
-            result = await browser.Wait(tabActived, cancellationToken);
+            var result = await browser.ClickAndWait(tab, tabActived, cancellationToken);
             if (result.IsFailed) return result;
 
             return Result.Ok();

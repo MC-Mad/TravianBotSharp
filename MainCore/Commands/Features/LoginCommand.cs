@@ -22,14 +22,11 @@
 
             var (username, password) = GetLoginInfo(command.AccountId, context);
 
-            Result result;
-            result = await browser.Input(By.XPath(usernameNode.XPath), username, cancellationToken);
+            var result = await browser.Input(usernameNode, username, cancellationToken);
             if (result.IsFailed) return result;
-            result = await browser.Input(By.XPath(passwordNode.XPath), password, cancellationToken);
+            result = await browser.Input(passwordNode, password, cancellationToken);
             if (result.IsFailed) return result;
-            result = await browser.Click(By.XPath(buttonNode.XPath), cancellationToken);
-            if (result.IsFailed) return result;
-            result = await browser.WaitPageChanged("dorf", cancellationToken);
+            result = await browser.ClickAndWaitPageChanged(buttonNode, "dorf", cancellationToken);
             if (result.IsFailed) return result;
 
             return Result.Ok();

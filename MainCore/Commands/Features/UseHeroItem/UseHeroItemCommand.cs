@@ -38,18 +38,7 @@
             var node = InventoryParser.GetItemSlot(browser.Html, item);
             if (node is null) return Retry.NotFound($"{item}", "item");
 
-            static bool loadingCompleted(IWebDriver driver)
-            {
-                var doc = new HtmlDocument();
-                doc.LoadHtml(driver.PageSource);
-                return InventoryParser.IsInventoryLoaded(doc);
-            }
-
-            Result result;
-            result = await browser.Click(By.XPath(node.XPath), cancellationToken);
-            if (result.IsFailed) return result;
-
-            result = await browser.Wait(driver => loadingCompleted(driver), cancellationToken);
+            var result = await browser.ClickAndWait(node, InventoryParser.IsInventoryLoaded, cancellationToken);
             if (result.IsFailed) return result;
             return Result.Ok();
         }
@@ -62,8 +51,7 @@
             var node = InventoryParser.GetAmountBox(browser.Html);
             if (node is null) return Retry.TextboxNotFound("amount");
 
-            Result result;
-            result = await browser.Input(By.XPath(node.XPath), amount.ToString(), cancellationToken);
+            var result = await browser.Input(node, amount.ToString(), cancellationToken);
             if (result.IsFailed) return result;
             return Result.Ok();
         }
@@ -75,18 +63,7 @@
             var node = InventoryParser.GetConfirmButton(browser.Html);
             if (node is null) return Retry.ButtonNotFound("confirm");
 
-            static bool loadingCompleted(IWebDriver driver)
-            {
-                var doc = new HtmlDocument();
-                doc.LoadHtml(driver.PageSource);
-                return InventoryParser.IsInventoryLoaded(doc);
-            }
-
-            Result result;
-            result = await browser.Click(By.XPath(node.XPath), cancellationToken);
-            if (result.IsFailed) return result;
-
-            result = await browser.Wait(driver => loadingCompleted(driver), cancellationToken);
+            var result = await browser.ClickAndWait(node, InventoryParser.IsInventoryLoaded, cancellationToken);
             if (result.IsFailed) return result;
 
             return Result.Ok();

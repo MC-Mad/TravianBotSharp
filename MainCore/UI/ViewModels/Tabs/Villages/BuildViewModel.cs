@@ -6,7 +6,6 @@ using MainCore.UI.ViewModels.Abstract;
 using MainCore.UI.ViewModels.UserControls;
 using Microsoft.Extensions.DependencyInjection;
 using System.Text;
-using System.Text.Json;
 
 namespace MainCore.UI.ViewModels.Tabs.Villages
 {
@@ -234,18 +233,9 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
         [ReactiveCommand]
         private async Task BuildNormal()
         {
-            if (!IsAccountPaused(AccountId))
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please pause account before modifing building queue"));
-                return;
-            }
+            if (!await CheckAccountPaused()) return;
 
-            var result = await _normalBuildInputValidator.ValidateAsync(NormalBuildInput);
-            if (!result.IsValid)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", result.ToString()));
-                return;
-            }
+            if (!await _dialogService.Validate(_normalBuildInputValidator, NormalBuildInput)) return;
 
             var location = Buildings.SelectedIndex + 1;
 
@@ -254,7 +244,7 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
             var buildResult = await normalBuildCommand.HandleAsync(new(VillageId, NormalBuildInput.ToPlan(location)));
             if (buildResult.IsFailed)
             {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", buildResult.ToString()));
+                await _dialogService.ShowError(buildResult.ToString());
                 return;
             }
 
@@ -264,11 +254,7 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
         [ReactiveCommand]
         private async Task UpgradeOneLevel()
         {
-            if (!IsAccountPaused(AccountId))
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please pause account before modifing building queue"));
-                return;
-            }
+            if (!await CheckAccountPaused()) return;
             var location = Buildings.SelectedIndex + 1;
 
             using var scope = _serviceScopeFactory.CreateScope(AccountId);
@@ -280,11 +266,7 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
         [ReactiveCommand]
         private async Task UpgradeMaxLevel()
         {
-            if (!IsAccountPaused(AccountId))
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please pause account before modifing building queue"));
-                return;
-            }
+            if (!await CheckAccountPaused()) return;
             var location = Buildings.SelectedIndex + 1;
 
             using var scope = _serviceScopeFactory.CreateScope(AccountId);
@@ -296,18 +278,9 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
         [ReactiveCommand]
         private async Task BuildResource()
         {
-            if (!IsAccountPaused(AccountId))
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please pause account before modifing building queue"));
-                return;
-            }
+            if (!await CheckAccountPaused()) return;
 
-            var result = await _resourceBuildInputValidator.ValidateAsync(ResourceBuildInput);
-            if (!result.IsValid)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", result.ToString()));
-                return;
-            }
+            if (!await _dialogService.Validate(_resourceBuildInputValidator, ResourceBuildInput)) return;
 
             using var scope = _serviceScopeFactory.CreateScope(AccountId);
             var resourceBuildCommand = scope.ServiceProvider.GetRequiredService<ResourceBuildCommand.Handler>();
@@ -318,17 +291,9 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
         [ReactiveCommand]
         private async Task Up()
         {
-            if (!IsAccountPaused(AccountId))
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please pause account before modifing building queue"));
-                return;
-            }
+            if (!await CheckAccountPaused()) return;
 
-            if (Jobs.SelectedItem is null)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please select before moving"));
-                return;
-            }
+            if (!await CheckJobSelected()) return;
 
             using var scope = _serviceScopeFactory.CreateScope(AccountId);
             var swapCommand = scope.ServiceProvider.GetRequiredService<SwapCommand.Handler>();
@@ -341,16 +306,8 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
         [ReactiveCommand]
         private async Task Down()
         {
-            if (!IsAccountPaused(AccountId))
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please pause account before modifing building queue"));
-                return;
-            }
-            if (Jobs.SelectedItem is null)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please select before moving"));
-                return;
-            }
+            if (!await CheckAccountPaused()) return;
+            if (!await CheckJobSelected()) return;
 
             using var scope = _serviceScopeFactory.CreateScope(AccountId);
             var swapCommand = scope.ServiceProvider.GetRequiredService<SwapCommand.Handler>();
@@ -362,16 +319,8 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
         [ReactiveCommand]
         private async Task Top()
         {
-            if (!IsAccountPaused(AccountId))
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please pause account before modifing building queue"));
-                return;
-            }
-            if (Jobs.SelectedItem is null)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please select before moving"));
-                return;
-            }
+            if (!await CheckAccountPaused()) return;
+            if (!await CheckJobSelected()) return;
 
             using var scope = _serviceScopeFactory.CreateScope(AccountId);
             var moveCommand = scope.ServiceProvider.GetRequiredService<MoveCommand.Handler>();
@@ -384,16 +333,8 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
         [ReactiveCommand]
         private async Task Bottom()
         {
-            if (!IsAccountPaused(AccountId))
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please pause account before modifing building queue"));
-                return;
-            }
-            if (Jobs.SelectedItem is null)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please select before moving"));
-                return;
-            }
+            if (!await CheckAccountPaused()) return;
+            if (!await CheckJobSelected()) return;
 
             using var scope = _serviceScopeFactory.CreateScope(AccountId);
             var moveCommand = scope.ServiceProvider.GetRequiredService<MoveCommand.Handler>();
@@ -405,11 +346,7 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
         [ReactiveCommand]
         private async Task Delete()
         {
-            if (!IsAccountPaused(AccountId))
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please pause account before modifing building queue"));
-                return;
-            }
+            if (!await CheckAccountPaused()) return;
             if (Jobs.SelectedItem is null) return;
             var jobId = Jobs.SelectedItem.Id;
 
@@ -422,11 +359,7 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
         [ReactiveCommand]
         private async Task DeleteAll()
         {
-            if (!IsAccountPaused(AccountId))
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please pause account before modifing building queue"));
-                return;
-            }
+            if (!await CheckAccountPaused()) return;
 
             using var scope = _serviceScopeFactory.CreateScope(AccountId);
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -439,29 +372,14 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
         [ReactiveCommand]
         private async Task Import()
         {
-            if (!IsAccountPaused(AccountId))
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please pause account before modifing building queue"));
-                return;
-            }
-            var path = await _dialogService.OpenFileDialog.Handle(Unit.Default);
-            if (string.IsNullOrEmpty(path)) return;
-            List<JobDto> jobs;
-            try
-            {
-                var jsonString = await File.ReadAllTextAsync(path);
-                jobs = JsonSerializer.Deserialize<List<JobDto>>(jsonString)!;
-            }
-            catch
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Invalid file."));
-                return;
-            }
+            if (!await CheckAccountPaused()) return;
+            var jobs = await _dialogService.ImportJson<List<JobDto>>();
+            if (jobs is null) return;
 
-            var confirm = await _dialogService.ConfirmBox.Handle(new MessageBoxData("Warning", "TBS will remove resource field build job if its position doesn't match with current village."));
+            var confirm = await _dialogService.AskConfirm("TBS will remove resource field build job if its position doesn't match with current village.");
             if (!confirm) return;
 
-            var shuffle = await _dialogService.ConfirmBox.Handle(new MessageBoxData("Warning", "Do you want to random building location?"));
+            var shuffle = await _dialogService.AskConfirm("Do you want to random building location?");
 
             using var scope = _serviceScopeFactory.CreateScope(AccountId);
             var fixJobsCommand = scope.ServiceProvider.GetRequiredService<FixJobsCommand.Handler>();
@@ -489,14 +407,7 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
         [ReactiveCommand]
         private async Task Export()
         {
-            if (!IsAccountPaused(AccountId))
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Please pause account before modifing building queue"));
-                return;
-            }
-
-            var path = await _dialogService.SaveFileDialog.Handle(Unit.Default);
-            if (string.IsNullOrEmpty(path)) return;
+            if (!await CheckAccountPaused()) return;
 
             using var scope = _serviceScopeFactory.CreateScope(AccountId);
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -506,20 +417,28 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
                 .ToDto()
                 .ToList();
             jobs.ForEach(job => job.Id = JobId.Empty);
-            var jsonString = JsonSerializer.Serialize(jobs);
-            await File.WriteAllTextAsync(path, jsonString);
 
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Job list exported"));
+            var exported = await _dialogService.ExportJson(jobs);
+            if (!exported) return;
+
+            await _dialogService.ShowInformation("Job list exported");
         }
 
-        private bool IsAccountPaused(AccountId accountId)
+        private async Task<bool> CheckAccountPaused()
         {
-            var status = _taskManager.GetStatus(accountId);
-            if (status == StatusEnums.Online)
-            {
-                return false;
-            }
-            return true;
+            var status = _taskManager.GetStatus(AccountId);
+            if (status != StatusEnums.Online) return true;
+
+            await _dialogService.ShowWarning("Please pause account before modifing building queue");
+            return false;
+        }
+
+        private async Task<bool> CheckJobSelected()
+        {
+            if (Jobs.SelectedItem is not null) return true;
+
+            await _dialogService.ShowWarning("Please select before moving");
+            return false;
         }
     }
 }

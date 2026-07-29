@@ -65,14 +65,14 @@ namespace MainCore.UI.ViewModels.Tabs
         {
             if (Villages.SelectedItem is null)
             {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "No village selected"));
+                await _dialogService.ShowWarning("No village selected");
                 return;
             }
 
             var villageId = new VillageId(Villages.SelectedItem.Id);
             _taskManager.AddOrUpdate<UpdateBuildingTask.Task>(new(AccountId, villageId));
 
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", $"Added update task"));
+            await _dialogService.ShowInformation($"Added update task");
         }
 
         [ReactiveCommand]
@@ -91,7 +91,7 @@ namespace MainCore.UI.ViewModels.Tabs
                 _taskManager.AddOrUpdate<UpdateBuildingTask.Task>(new(AccountId, village));
             }
 
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", $"Added update task"));
+            await _dialogService.ShowInformation($"Added update task");
         }
 
         [ReactiveCommand]
@@ -108,7 +108,7 @@ namespace MainCore.UI.ViewModels.Tabs
             {
                 _taskManager.AddOrUpdate<UpdateBuildingTask.Task>(new(AccountId, village));
             }
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", $"Added update task"));
+            await _dialogService.ShowInformation($"Added update task");
         }
 
         [ReactiveCommand]

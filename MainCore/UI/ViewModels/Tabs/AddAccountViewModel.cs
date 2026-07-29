@@ -43,13 +43,7 @@ namespace MainCore.UI.ViewModels.Tabs
         [ReactiveCommand]
         private async Task AddAccess()
         {
-            var result = _accessInputValidator.Validate(AccessInput);
-
-            if (!result.IsValid)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", result.ToString()));
-                return;
-            }
+            if (!await _dialogService.Validate(_accessInputValidator, AccessInput)) return;
 
             if (string.IsNullOrEmpty(AccountInput.Username))
             {
@@ -64,13 +58,7 @@ namespace MainCore.UI.ViewModels.Tabs
         {
             if (SelectedAccess is null) return;
 
-            var result = _accessInputValidator.Validate(AccessInput);
-
-            if (!result.IsValid)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", result.ToString()));
-                return;
-            }
+            if (!await _dialogService.Validate(_accessInputValidator, AccessInput)) return;
 
             AccessInput.CopyTo(SelectedAccess);
         }
@@ -85,13 +73,7 @@ namespace MainCore.UI.ViewModels.Tabs
         [ReactiveCommand]
         private async Task<bool> AddAccount()
         {
-            var validateResult = await _accountInputValidator.ValidateAsync(AccountInput);
-
-            if (!validateResult.IsValid)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", validateResult.ToString()));
-                return false;
-            }
+            if (!await _dialogService.Validate(_accountInputValidator, AccountInput)) return false;
 
             await _waitingOverlayViewModel.Show("adding account");
 
@@ -102,11 +84,11 @@ namespace MainCore.UI.ViewModels.Tabs
 
             if (isFailed)
             {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", string.Join(Environment.NewLine, errors.Select(failure => failure.Message.ToString()))));
+                await _dialogService.ShowError(string.Join(Environment.NewLine, errors.Select(failure => failure.Message.ToString())));
                 return false;
             }
 
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Added account"));
+            await _dialogService.ShowInformation("Added account");
             return true;
         }
 

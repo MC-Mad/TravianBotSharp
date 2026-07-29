@@ -19,34 +19,17 @@ namespace MainCore.Commands.Features.CompleteImmediately
             var completeNowButton = CompleteImmediatelyParser.GetCompleteButton(browser.Html);
             if (completeNowButton is null) return Retry.ButtonNotFound("complete now");
 
-            var result = await browser.Click(By.XPath(completeNowButton.XPath), cancellationToken);
-            if (result.IsFailed) return result;
+            static bool ConfirmShown(HtmlDocument doc) => CompleteImmediatelyParser.GetConfirmButton(doc) is not null;
 
-            static bool ConfirmShown(IWebDriver driver)
-            {
-                var doc = new HtmlDocument();
-                doc.LoadHtml(driver.PageSource);
-                var confirmButton = CompleteImmediatelyParser.GetConfirmButton(doc);
-                return confirmButton is not null;
-            }
-            result = await browser.Wait(ConfirmShown, cancellationToken);
+            var result = await browser.ClickAndWait(completeNowButton, ConfirmShown, cancellationToken);
             if (result.IsFailed) return result;
 
             var confirmButton = CompleteImmediatelyParser.GetConfirmButton(browser.Html);
             if (confirmButton is null) return Retry.ButtonNotFound("confirm complete now");
 
-            result = await browser.Click(By.XPath(confirmButton.XPath), cancellationToken);
-            if (result.IsFailed) return result;
+            bool QueueDifferent(HtmlDocument doc) => CompleteImmediatelyParser.CountQueueBuilding(doc) != oldQueueCount;
 
-            static bool QueueDifferent(IWebDriver driver, int oldQueueCount)
-            {
-                var doc = new HtmlDocument();
-                doc.LoadHtml(driver.PageSource);
-                var newQueueCount = CompleteImmediatelyParser.CountQueueBuilding(doc);
-                return oldQueueCount != newQueueCount;
-            }
-
-            result = await browser.Wait(driver => QueueDifferent(driver, oldQueueCount), cancellationToken);
+            result = await browser.ClickAndWait(confirmButton, QueueDifferent, cancellationToken);
             if (result.IsFailed) return result;
 
             return Result.Ok();

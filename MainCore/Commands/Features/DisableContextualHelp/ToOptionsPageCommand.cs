@@ -16,7 +16,7 @@ namespace MainCore.Commands.Features.DisableContextualHelp
             var button = OptionParser.GetOptionButton(browser.Html);
             if (button is null) return Retry.ButtonNotFound("options");
 
-            var result = await browser.Click(By.XPath(button.XPath), cancellationToken);
+            var result = await browser.Click(button, cancellationToken);
             if (result.IsFailed) return result;
 
             return Result.Ok();

@@ -3,7 +3,6 @@ using MainCore.UI.Models.Input;
 using MainCore.UI.Models.Output;
 using MainCore.UI.ViewModels.Abstract;
 using Microsoft.Extensions.DependencyInjection;
-using System.Text.Json;
 
 namespace MainCore.UI.ViewModels.Tabs
 {
@@ -33,70 +32,43 @@ namespace MainCore.UI.ViewModels.Tabs
         [ReactiveCommand]
         private async Task Save()
         {
-            var result = await _accountsettingInputValidator.ValidateAsync(AccountSettingInput);
-            if (!result.IsValid)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", result.ToString()));
-                return;
-            }
+            if (!await _dialogService.Validate(_accountsettingInputValidator, AccountSettingInput)) return;
 
-            using var scope = _serviceScopeFactory.CreateScope(AccountId);
-            var saveAccountSettingCommand = scope.ServiceProvider.GetRequiredService<SaveAccountSettingCommand.Handler>();
-            await saveAccountSettingCommand.HandleAsync(new(AccountId, AccountSettingInput.Get()));
+            await SaveSetting();
 
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Settings saved."));
+            await _dialogService.ShowInformation("Settings saved.");
         }
 
         [ReactiveCommand]
         private async Task Import()
         {
-            var path = await _dialogService.OpenFileDialog.Handle(Unit.Default);
-            Dictionary<AccountSettingEnums, int> settings;
-            try
-            {
-                var jsonString = await File.ReadAllTextAsync(path);
-                settings = JsonSerializer.Deserialize<Dictionary<AccountSettingEnums, int>>(jsonString)!;
-            }
-            catch
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Invalid file."));
-                return;
-            }
+            var settings = await _dialogService.ImportJson<Dictionary<AccountSettingEnums, int>>();
+            if (settings is null) return;
 
             AccountSettingInput.Set(settings);
-            var result = await _accountsettingInputValidator.ValidateAsync(AccountSettingInput);
-            if (!result.IsValid)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", result.ToString()));
-                return;
-            }
+            if (!await _dialogService.Validate(_accountsettingInputValidator, AccountSettingInput)) return;
 
-            using var scope = _serviceScopeFactory.CreateScope(AccountId);
-            var saveAccountSettingCommand = scope.ServiceProvider.GetRequiredService<SaveAccountSettingCommand.Handler>();
-            await saveAccountSettingCommand.HandleAsync(new(AccountId, AccountSettingInput.Get()));
+            await SaveSetting();
 
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Settings imported."));
+            await _dialogService.ShowInformation("Settings imported.");
         }
 
         [ReactiveCommand]
         private async Task Export()
         {
-            var path = await _dialogService.SaveFileDialog.Handle(Unit.Default);
-            if (string.IsNullOrEmpty(path)) return;
+            var exported = await _dialogService.ExportJson(GetSetting());
+            if (!exported) return;
 
-            using var scope = _serviceScopeFactory.CreateScope(AccountId);
-            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var settings = context.AccountsSetting
-              .Where(x => x.AccountId == AccountId.Value)
-              .ToDictionary(x => x.Setting, x => x.Value);
-
-            var jsonString = JsonSerializer.Serialize(settings);
-            await File.WriteAllTextAsync(path, jsonString);
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Settings exported."));
+            await _dialogService.ShowInformation("Settings exported.");
         }
 
         [ReactiveCommand]
         private Dictionary<AccountSettingEnums, int> LoadSettings(AccountId accountId)
+        {
+            return GetSetting();
+        }
+
+        private Dictionary<AccountSettingEnums, int> GetSetting()
         {
             using var scope = _serviceScopeFactory.CreateScope(AccountId);
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -104,6 +76,13 @@ namespace MainCore.UI.ViewModels.Tabs
               .Where(x => x.AccountId == AccountId.Value)
               .ToDictionary(x => x.Setting, x => x.Value);
             return settings;
+        }
+
+        private async Task SaveSetting()
+        {
+            using var scope = _serviceScopeFactory.CreateScope(AccountId);
+            var saveAccountSettingCommand = scope.ServiceProvider.GetRequiredService<SaveAccountSettingCommand.Handler>();
+            await saveAccountSettingCommand.HandleAsync(new(AccountId, AccountSettingInput.Get()));
         }
     }
 }

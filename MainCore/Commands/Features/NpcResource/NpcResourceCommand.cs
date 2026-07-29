@@ -65,12 +65,7 @@
             result = await Redeem(browser, cancellationToken);
             if (result.IsFailed) return result;
 
-            result = await browser.Wait(driver =>
-            {
-                var doc = new HtmlDocument();
-                doc.LoadHtml(driver.PageSource);
-                return !NpcResourceParser.IsNpcDialog(doc);
-            }, cancellationToken);
+            result = await browser.WaitHtml(doc => !NpcResourceParser.IsNpcDialog(doc), cancellationToken);
             if (result.IsFailed) return result;
 
             await Task.Delay(5000);
@@ -119,17 +114,7 @@
             var button = NpcResourceParser.GetExchangeResourcesButton(browser.Html);
             if (button is null) return Retry.ButtonNotFound("Exchange resources");
 
-            static bool DialogShown(IWebDriver driver)
-            {
-                var doc = new HtmlDocument();
-                doc.LoadHtml(driver.PageSource);
-                return NpcResourceParser.IsNpcDialog(doc);
-            }
-
-            var result = await browser.Click(By.XPath(button.XPath), cancellationToken);
-            if (result.IsFailed) return result;
-
-            result = await browser.Wait(DialogShown, cancellationToken);
+            var result = await browser.ClickAndWait(button, NpcResourceParser.IsNpcDialog, cancellationToken);
             if (result.IsFailed) return result;
 
             return Result.Ok();
@@ -141,7 +126,7 @@
 
             for (var i = 0; i < 4; i++)
             {
-                var result = await browser.Input(By.XPath(inputs[i].XPath), $"{values[i]}", cancellationToken);
+                var result = await browser.Input(inputs[i], $"{values[i]}", cancellationToken);
                 if (result.IsFailed) return result;
             }
 
@@ -183,22 +168,13 @@
 
         private static async Task<Result> Distribute(IChromeBrowser browser, CancellationToken cancellationToken)
         {
-            var result = await browser.Wait(driver =>
-            {
-                var doc = new HtmlDocument();
-                doc.LoadHtml(driver.PageSource);
-                var button = NpcResourceParser.GetDistributeButton(browser.Html);
-                if (button is null) return false;
-
-                var elements = driver.FindElements(By.XPath(button.XPath));
-                return elements.Count > 0 && elements[0].Enabled;
-            }, cancellationToken);
+            var result = await browser.WaitButtonClickable(NpcResourceParser.GetDistributeButton, cancellationToken);
             if (result.IsFailed) return result;
 
             var button = NpcResourceParser.GetDistributeButton(browser.Html);
             if (button is null) return Retry.ButtonNotFound("distribute");
 
-            result = await browser.Click(By.XPath(button.XPath), cancellationToken);
+            result = await browser.Click(button, cancellationToken);
             if (result.IsFailed) return result;
 
             return Result.Ok();
@@ -206,23 +182,13 @@
 
         private static async Task<Result> Redeem(IChromeBrowser browser, CancellationToken cancellationToken)
         {
-            var result = await browser.Wait(driver =>
-            {
-                var doc = new HtmlDocument();
-                doc.LoadHtml(driver.PageSource);
-                var button = NpcResourceParser.GetRedeemButton(doc);
-
-                if (button is null) return false;
-
-                var elements = driver.FindElements(By.XPath(button.XPath));
-                return elements.Count > 0 && elements[0].Enabled;
-            }, cancellationToken);
+            var result = await browser.WaitButtonClickable(NpcResourceParser.GetRedeemButton, cancellationToken);
             if (result.IsFailed) return result;
 
             var button = NpcResourceParser.GetRedeemButton(browser.Html);
             if (button is null) return Retry.ButtonNotFound("redeem");
 
-            result = await browser.Click(By.XPath(button.XPath), cancellationToken);
+            result = await browser.Click(button, cancellationToken);
             if (result.IsFailed) return result;
 
             return Result.Ok();

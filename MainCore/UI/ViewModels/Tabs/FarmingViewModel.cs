@@ -85,7 +85,7 @@ namespace MainCore.UI.ViewModels.Tabs
         private async Task UpdateFarmList()
         {
             _taskManager.AddOrUpdate<UpdateFarmListTask.Task>(new(AccountId));
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Added update farm list task"));
+            await _dialogService.ShowInformation("Added update farm list task");
         }
 
         [ReactiveCommand]
@@ -100,35 +100,30 @@ namespace MainCore.UI.ViewModels.Tabs
                 var count = CountActive(AccountId);
                 if (count == 0)
                 {
-                    await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "There is no active farm or use start all button is disable"));
+                    await _dialogService.ShowInformation("There is no active farm or use start all button is disable");
                     return;
                 }
             }
             _taskManager.AddOrUpdate<StartFarmListTask.Task>(new(AccountId));
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Added start farm list task"));
+            await _dialogService.ShowInformation("Added start farm list task");
         }
 
         [ReactiveCommand]
         private async Task Stop()
         {
             _taskManager.Remove<StartFarmListTask.Task>(AccountId);
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Removed start farm list task"));
+            await _dialogService.ShowInformation("Removed start farm list task");
         }
 
         [ReactiveCommand]
         private async Task Save()
         {
-            var result = await _accountsettingInputValidator.ValidateAsync(AccountSettingInput);
-            if (!result.IsValid)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", result.ToString()));
-                return;
-            }
+            if (!await _dialogService.Validate(_accountsettingInputValidator, AccountSettingInput)) return;
 
             using var scope = _serviceScopeFactory.CreateScope(AccountId);
             var saveAccountSettingCommand = scope.ServiceProvider.GetRequiredService<SaveAccountSettingCommand.Handler>();
             await saveAccountSettingCommand.HandleAsync(new(AccountId, AccountSettingInput.Get()));
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Saved"));
+            await _dialogService.ShowInformation("Saved");
         }
 
         [ReactiveCommand]
@@ -136,7 +131,7 @@ namespace MainCore.UI.ViewModels.Tabs
         {
             if (FarmLists.SelectedItem is null)
             {
-                await _dialogService.ConfirmBox.Handle(new MessageBoxData("Warning", "No farm list selected"));
+                await _dialogService.AskConfirm("No farm list selected");
                 return;
             }
 
@@ -151,7 +146,7 @@ namespace MainCore.UI.ViewModels.Tabs
                .ExecuteUpdate(x => x.SetProperty(x => x.IsActive, x => !x.IsActive));
 
             await FarmsModifiedCommand.Execute(new FarmsModified(AccountId));
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Activated farm list"));
+            await _dialogService.ShowInformation("Activated farm list");
         }
 
         [ReactiveCommand]

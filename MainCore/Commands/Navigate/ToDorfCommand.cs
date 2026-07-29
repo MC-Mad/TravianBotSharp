@@ -14,7 +14,7 @@
             var dorf = command.Dorf;
 
             var currentUrl = browser.CurrentUrl;
-            var currentDorf = GetCurrentDorf(currentUrl);
+            var currentDorf = currentUrl.GetCurrentDorf();
             if (dorf == 0)
             {
                 if (currentDorf == 0) dorf = 1;
@@ -29,19 +29,9 @@
             var button = NavigationBarParser.GetDorfButton(browser.Html, dorf);
             if (button is null) return Retry.ButtonNotFound($"dorf{dorf}");
 
-            Result result;
-            result = await browser.Click(By.XPath(button.XPath), cancellationToken);
-            if (result.IsFailed) return result;
-            result = await browser.WaitPageChanged($"dorf{dorf}", cancellationToken);
+            var result = await browser.ClickAndWaitPageChanged(button, $"dorf{dorf}", cancellationToken);
             if (result.IsFailed) return result;
             return Result.Ok();
-        }
-
-        private static int GetCurrentDorf(string url)
-        {
-            if (url.Contains("dorf1")) return 1;
-            if (url.Contains("dorf2")) return 2;
-            return 0;
         }
     }
 }
