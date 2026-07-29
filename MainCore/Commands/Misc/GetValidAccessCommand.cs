@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Collections.Concurrent;
+using System.Net;
 
 namespace MainCore.Commands.Misc
 {
@@ -59,31 +60,12 @@ namespace MainCore.Commands.Misc
             return access;
         }
 
-        private static readonly NetworkCredential _networkCredential = new();
-
-        private static readonly WebProxy _proxyWithAuth = new()
-        {
-            Credentials = _networkCredential,
-        };
-
-        private static readonly WebProxy _proxyWithoutAuth = new();
-
-        private static readonly HttpClient _proxyWithoutAuthHttpClient = new(new HttpClientHandler()
-        {
-            Proxy = _proxyWithoutAuth,
-            UseProxy = true,
-        });
-
-        private static readonly HttpClient _proxyWithAuthHttpClient = new(new HttpClientHandler()
-        {
-            Proxy = _proxyWithAuth,
-            UseProxy = true,
-        });
-
         private static readonly HttpClient _defaultHttpClient = new(new HttpClientHandler()
         {
             UseProxy = false,
         });
+
+        private static readonly ConcurrentDictionary<string, HttpClient> _proxyHttpClients = new();
 
         private const string TRAVIAN_PAGE = "https://www.travian.com/international";
 
@@ -91,16 +73,23 @@ namespace MainCore.Commands.Misc
         {
             if (string.IsNullOrEmpty(access.ProxyHost)) return _defaultHttpClient;
 
-            if (string.IsNullOrEmpty(access.ProxyUsername))
+            var key = $"{access.ProxyHost}:{access.ProxyPort}|{access.ProxyUsername}|{access.ProxyPassword}";
+            return _proxyHttpClients.GetOrAdd(key, _ => CreateProxyHttpClient(access));
+        }
+
+        private static HttpClient CreateProxyHttpClient(AccessDto access)
+        {
+            var proxy = new WebProxy($"http://{access.ProxyHost}:{access.ProxyPort}");
+            if (!string.IsNullOrEmpty(access.ProxyUsername))
             {
-                _proxyWithoutAuth.Address = new Uri($"http://{access.ProxyHost}:{access.ProxyPort}");
-                return _proxyWithoutAuthHttpClient;
+                proxy.Credentials = new NetworkCredential(access.ProxyUsername, access.ProxyPassword);
             }
 
-            _networkCredential.UserName = access.ProxyUsername;
-            _networkCredential.Password = access.ProxyPassword;
-            _proxyWithAuth.Address = new Uri($"http://{access.ProxyHost}:{access.ProxyPort}");
-            return _proxyWithAuthHttpClient;
+            return new HttpClient(new HttpClientHandler()
+            {
+                Proxy = proxy,
+                UseProxy = true,
+            });
         }
     }
 }

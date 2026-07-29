@@ -1,7 +1,9 @@
 ﻿using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Interactions;
 using OpenQA.Selenium.Support.UI;
+using System.Globalization;
 using System.IO.Compression;
+using System.Text.Json;
 
 namespace MainCore.Services
 {
@@ -13,6 +15,7 @@ namespace MainCore.Services
 
         private readonly string[] _extensionsPath;
         private readonly HtmlDocument _htmlDoc = new();
+        private string? _proxyExtensionPath;
 
         public ChromeBrowser(string[] extensionsPath)
         {
@@ -32,7 +35,7 @@ namespace MainCore.Services
             {
                 if (!string.IsNullOrEmpty(setting.ProxyUsername) && !string.IsNullOrEmpty(setting.ProxyPassword))
                 {
-                    options.AddHttpProxy(setting.ProxyHost, setting.ProxyPort, setting.ProxyUsername, setting.ProxyPassword);
+                    _proxyExtensionPath = options.AddHttpProxy(setting.ProxyHost, setting.ProxyPort, setting.ProxyUsername, setting.ProxyPassword);
                 }
                 else
                 {
@@ -41,7 +44,6 @@ namespace MainCore.Services
             }
 
             options.AddArgument($"--user-agent={setting.UserAgent}");
-            options.AddArgument("--ignore-certificate-errors");
             options.AddArguments("--no-default-browser-check", "--no-first-run", "--ash-no-nudges");
             options.AddArguments("--mute-audio", "--disable-gpu", "--disable-search-engine-choice-screen");
 
@@ -67,14 +69,29 @@ namespace MainCore.Services
             var pathUserData = Path.Combine(AppContext.BaseDirectory, "Data", "Cache", setting.ProfilePath);
             if (!Directory.Exists(pathUserData)) Directory.CreateDirectory(pathUserData);
 
-            pathUserData = Path.Combine(pathUserData, string.IsNullOrEmpty(setting.ProxyHost) ? "default" : setting.ProxyHost);
+            pathUserData = Path.Combine(pathUserData, string.IsNullOrEmpty(setting.ProxyHost) ? "default" : setting.ProxyHost.ToFolderName());
 
             options.AddArguments($"user-data-dir={pathUserData}");
 
             _driver = await Task.Run(() => new ChromeDriver(_chromeService, options, TimeSpan.FromMinutes(3)));
 
+            DeleteProxyExtension();
+
             _driver.Manage().Timeouts().PageLoad = TimeSpan.FromMinutes(3);
             _wait = new WebDriverWait(_driver, TimeSpan.FromMinutes(3)); // watch ads
+        }
+
+        private void DeleteProxyExtension()
+        {
+            if (string.IsNullOrEmpty(_proxyExtensionPath)) return;
+            try
+            {
+                File.Delete(_proxyExtensionPath);
+            }
+            catch (IOException)
+            {
+            }
+            _proxyExtensionPath = null;
         }
 
         public ChromeDriver? Driver => _driver;
@@ -243,8 +260,8 @@ var config = {
     rules: {
         singleProxy: {
             scheme: ""http"",
-            host: ""{HOST}"",
-            port: parseInt({PORT})
+            host: {HOST},
+            port: {PORT}
         },
         bypassList: []
 	}
@@ -257,8 +274,8 @@ function callbackFn(details)
 	return {
 		authCredentials:
 		{
-			username: ""{USERNAME}"",
-			password: ""{PASSWORD}""
+			username: {USERNAME},
+			password: {PASSWORD}
 		}
 	};
 }
@@ -299,7 +316,8 @@ chrome.webRequest.onAuthRequired.addListener(
         /// <param name="port">Proxy port</param>
         /// <param name="userName">Proxy username</param>
         /// <param name="password">Proxy password</param>
-        public static void AddHttpProxy(this ChromeOptions options, string host, int port, string userName, string password)
+        /// <returns>Path of the generated extension archive</returns>
+        public static string AddHttpProxy(this ChromeOptions options, string host, int port, string userName, string password)
         {
             var background_proxy_js = ReplaceTemplates(background_js, host, port, userName, password);
 
@@ -325,15 +343,16 @@ chrome.webRequest.onAuthRequired.addListener(
             File.Delete(backgroundPath);
 
             options.AddExtension(archiveFilePath);
+            return archiveFilePath;
         }
 
         private static string ReplaceTemplates(string str, string host, int port, string userName, string password)
         {
             return str
-                .Replace("{HOST}", host)
-                .Replace("{PORT}", port.ToString())
-                .Replace("{USERNAME}", userName)
-                .Replace("{PASSWORD}", password);
+                .Replace("{HOST}", JsonSerializer.Serialize(host))
+                .Replace("{PORT}", port.ToString(CultureInfo.InvariantCulture))
+                .Replace("{USERNAME}", JsonSerializer.Serialize(userName))
+                .Replace("{PASSWORD}", JsonSerializer.Serialize(password));
         }
     }
 }

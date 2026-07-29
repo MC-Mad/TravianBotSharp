@@ -24,8 +24,8 @@
 
             var uri = new Uri(account.Server);
 
-            var serverFolderName = uri.Host.Replace(".", "_");
-            var accountFolderName = account.Username;
+            var serverFolderName = uri.Host.Replace(".", "_").ToFolderName();
+            var accountFolderName = account.Username.ToFolderName();
 
             var headlessChrome = context.BooleanByName(accountId, AccountSettingEnums.HeadlessChrome);
             var profilePath = Path.Combine(serverFolderName, accountFolderName);
