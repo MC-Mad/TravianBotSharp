@@ -29,9 +29,10 @@ jobs:
       - name: Get changelog
         id: changelog
         run: |
-          echo 'changelog<<CHANGELOG_BODY_EOF' >> $GITHUB_OUTPUT
-          echo "$(curl https://gist.githubusercontent.com/vinaghost/f7ce5204670e8194eea71a3961405c2f/raw/)" >> $GITHUB_OUTPUT
-          echo 'CHANGELOG_BODY_EOF' >> $GITHUB_OUTPUT
+          delimiter="CHANGELOG_BODY_$(openssl rand -hex 16)"
+          echo "changelog<<$delimiter" >> $GITHUB_OUTPUT
+          curl --fail --silent --show-error https://gist.githubusercontent.com/vinaghost/f7ce5204670e8194eea71a3961405c2f/raw/ | grep -v "^$delimiter$" >> $GITHUB_OUTPUT
+          echo "$delimiter" >> $GITHUB_OUTPUT
   Build:
     runs-on: windows-latest
     needs: Version

@@ -11,7 +11,7 @@ namespace MainCore.UI.Models.Validators
                 .WithName("Server url");
 
             RuleFor(x => x.Server)
-                .Must(uri => Uri.TryCreate(uri, UriKind.Absolute, out _)).When(x => !string.IsNullOrEmpty(x.Server))
+                .Must(IsHttpUrl).When(x => !string.IsNullOrEmpty(x.Server))
                 .WithMessage("Invalid Server url, please follow the pattern [https://ts1.x1.international.travian.com]");
 
             RuleFor(x => x.Accesses)
@@ -21,6 +21,12 @@ namespace MainCore.UI.Models.Validators
             RuleFor(x => x.Username)
                 .NotEmpty()
                 .WithName("Nick name");
+        }
+
+        private static bool IsHttpUrl(string url)
+        {
+            return Uri.TryCreate(url, UriKind.Absolute, out var uri)
+                && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
         }
     }
 }
