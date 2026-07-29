@@ -22,46 +22,24 @@ namespace MainCore.Tasks
             CancellationToken cancellationToken)
         {
             var url = browser.CurrentUrl;
-            Result result;
+            var villageId = task.VillageId;
 
-            bool isFailed;
-            IReadOnlyList<IError> errors;
-            if (url.Contains("dorf1"))
+            var currentDorf = url.GetCurrentDorf();
+            if (currentDorf != 0)
             {
-                (_, isFailed, errors) = await updateBuildingCommand.HandleAsync(new(task.VillageId), cancellationToken);
-                if (isFailed) return Result.Fail(errors);
-
-                result = await toDorfCommand.HandleAsync(new(2), cancellationToken);
+                var result = await DorfUpdater.Update(updateBuildingCommand, villageId, cancellationToken);
                 if (result.IsFailed) return result;
-
-                (_, isFailed, errors) = await updateBuildingCommand.HandleAsync(new(task.VillageId), cancellationToken);
-                if (isFailed) return Result.Fail(errors);
-            }
-            else if (url.Contains("dorf2"))
-            {
-                (_, isFailed, errors) = await updateBuildingCommand.HandleAsync(new(task.VillageId), cancellationToken);
-                if (isFailed) return Result.Fail(errors);
-
-                result = await toDorfCommand.HandleAsync(new(1), cancellationToken);
-                if (result.IsFailed) return result;
-
-                (_, isFailed, errors) = await updateBuildingCommand.HandleAsync(new(task.VillageId), cancellationToken);
-                if (isFailed) return Result.Fail(errors);
             }
             else
             {
-                result = await toDorfCommand.HandleAsync(new(2), cancellationToken);
+                var result = await DorfUpdater.ToDorfAndUpdate(2, toDorfCommand, updateBuildingCommand, villageId, cancellationToken);
                 if (result.IsFailed) return result;
-
-                (_, isFailed, errors) = await updateBuildingCommand.HandleAsync(new(task.VillageId), cancellationToken);
-                if (isFailed) return Result.Fail(errors);
-
-                result = await toDorfCommand.HandleAsync(new(1), cancellationToken);
-                if (result.IsFailed) return result;
-
-                (_, isFailed, errors) = await updateBuildingCommand.HandleAsync(new(task.VillageId), cancellationToken);
-                if (isFailed) return Result.Fail(errors);
             }
+
+            var otherDorf = currentDorf == 1 ? 2 : 1;
+            var otherDorfResult = await DorfUpdater.ToDorfAndUpdate(otherDorf, toDorfCommand, updateBuildingCommand, villageId, cancellationToken);
+            if (otherDorfResult.IsFailed) return otherDorfResult;
+
             return Result.Ok();
         }
     }

@@ -3,7 +3,6 @@ using MainCore.UI.Models.Input;
 using MainCore.UI.Models.Output;
 using MainCore.UI.ViewModels.Abstract;
 using Microsoft.Extensions.DependencyInjection;
-using System.Text.Json;
 
 namespace MainCore.UI.ViewModels.Tabs.Villages
 {
@@ -40,69 +39,43 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
         [ReactiveCommand]
         private async Task Save()
         {
-            var result = await _villageSettingInputValidator.ValidateAsync(VillageSettingInput);
-            if (!result.IsValid)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", result.ToString()));
-                return;
-            }
+            if (!await _dialogService.Validate(_villageSettingInputValidator, VillageSettingInput)) return;
 
-            using var scope = _serviceScopeFactory.CreateScope(AccountId);
-            var saveVillageSettingCommand = scope.ServiceProvider.GetRequiredService<SaveVillageSettingCommand.Handler>();
-            await saveVillageSettingCommand.HandleAsync(new(AccountId, VillageId, VillageSettingInput.Get()));
+            await SaveSetting();
 
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Settings saved."));
+            await _dialogService.ShowInformation("Settings saved.");
         }
 
         [ReactiveCommand]
         private async Task Import()
         {
-            var path = await _dialogService.OpenFileDialog.Handle(Unit.Default);
-            Dictionary<VillageSettingEnums, int> settings;
-            try
-            {
-                var jsonString = await File.ReadAllTextAsync(path);
-                settings = JsonSerializer.Deserialize<Dictionary<VillageSettingEnums, int>>(jsonString)!;
-            }
-            catch
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Invalid file."));
-                return;
-            }
+            var settings = await _dialogService.ImportJson<Dictionary<VillageSettingEnums, int>>();
+            if (settings is null) return;
 
             VillageSettingInput.Set(settings);
-            var result = await _villageSettingInputValidator.ValidateAsync(VillageSettingInput);
-            if (!result.IsValid)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", result.ToString()));
-                return;
-            }
+            if (!await _dialogService.Validate(_villageSettingInputValidator, VillageSettingInput)) return;
 
-            using var scope = _serviceScopeFactory.CreateScope(AccountId);
-            var saveVillageSettingCommand = scope.ServiceProvider.GetRequiredService<SaveVillageSettingCommand.Handler>();
-            await saveVillageSettingCommand.HandleAsync(new(AccountId, VillageId, VillageSettingInput.Get()));
+            await SaveSetting();
 
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Settings imported"));
+            await _dialogService.ShowInformation("Settings imported");
         }
 
         [ReactiveCommand]
         private async Task Export()
         {
-            var path = await _dialogService.SaveFileDialog.Handle(Unit.Default);
-            if (string.IsNullOrEmpty(path)) return;
+            var exported = await _dialogService.ExportJson(GetSetting());
+            if (!exported) return;
 
-            using var scope = _serviceScopeFactory.CreateScope(AccountId);
-            var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var settings = context.VillagesSetting
-               .Where(x => x.VillageId == VillageId.Value)
-               .ToDictionary(x => x.Setting, x => x.Value);
-            var jsonString = JsonSerializer.Serialize(settings);
-            await File.WriteAllTextAsync(path, jsonString);
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Settings exported"));
+            await _dialogService.ShowInformation("Settings exported");
         }
 
         [ReactiveCommand]
         private Dictionary<VillageSettingEnums, int> LoadSetting(VillageId villageId)
+        {
+            return GetSetting();
+        }
+
+        private Dictionary<VillageSettingEnums, int> GetSetting()
         {
             using var scope = _serviceScopeFactory.CreateScope(AccountId);
             var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -110,6 +83,13 @@ namespace MainCore.UI.ViewModels.Tabs.Villages
                .Where(x => x.VillageId == VillageId.Value)
                .ToDictionary(x => x.Setting, x => x.Value);
             return settings;
+        }
+
+        private async Task SaveSetting()
+        {
+            using var scope = _serviceScopeFactory.CreateScope(AccountId);
+            var saveVillageSettingCommand = scope.ServiceProvider.GetRequiredService<SaveVillageSettingCommand.Handler>();
+            await saveVillageSettingCommand.HandleAsync(new(AccountId, VillageId, VillageSettingInput.Get()));
         }
     }
 }

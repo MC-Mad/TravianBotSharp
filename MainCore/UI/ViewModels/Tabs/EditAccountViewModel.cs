@@ -43,13 +43,7 @@ namespace MainCore.UI.ViewModels.Tabs
         [ReactiveCommand]
         private async Task AddAccess()
         {
-            var result = _accessInputValidator.Validate(AccessInput);
-
-            if (!result.IsValid)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", result.ToString()));
-                return;
-            }
+            if (!await _dialogService.Validate(_accessInputValidator, AccessInput)) return;
 
             AccountInput.Accesses.Add(AccessInput.Clone());
         }
@@ -58,13 +52,8 @@ namespace MainCore.UI.ViewModels.Tabs
         private async Task EditAccess()
         {
             if (SelectedAccess is null) return;
-            var result = _accessInputValidator.Validate(AccessInput);
 
-            if (!result.IsValid)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", result.ToString()));
-                return;
-            }
+            if (!await _dialogService.Validate(_accessInputValidator, AccessInput)) return;
 
             AccessInput.CopyTo(SelectedAccess);
         }
@@ -79,20 +68,15 @@ namespace MainCore.UI.ViewModels.Tabs
         [ReactiveCommand]
         private async Task EditAccount()
         {
-            var results = await _accountInputValidator.ValidateAsync(AccountInput);
+            if (!await _dialogService.Validate(_accountInputValidator, AccountInput)) return;
 
-            if (!results.IsValid)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", results.ToString()));
-                return;
-            }
             await _waitingOverlayViewModel.Show("editing account");
 
             using var scope = _serviceScopeFactory.CreateScope(AccountId);
             var updateAccountCommand = scope.ServiceProvider.GetRequiredService<UpdateAccountCommand.Handler>();
             await updateAccountCommand.HandleAsync(new(AccountInput.ToDto()));
             await _waitingOverlayViewModel.Hide();
-            await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Edited account"));
+            await _dialogService.ShowInformation("Edited account");
 
             await LoadAccountCommand.Execute(AccountId);
         }

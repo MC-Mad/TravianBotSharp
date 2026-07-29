@@ -15,6 +15,13 @@ namespace MainCore.Common.Extensions
             return NonAlphanumericRegex().Replace(input, "").Replace(' ', '_');
         }
 
+        public static int GetCurrentDorf(this string url)
+        {
+            if (url.Contains("dorf1")) return 1;
+            if (url.Contains("dorf2")) return 2;
+            return 0;
+        }
+
         public static string GetServerUrl(this string input)
         {
             if (string.IsNullOrEmpty(input))

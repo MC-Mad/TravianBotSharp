@@ -16,7 +16,7 @@ namespace MainCore.Commands.Features.StartFarmList
             var startAllButton = FarmListParser.GetStartAllButton(browser.Html);
             if (startAllButton is null) return Retry.ButtonNotFound("Start all farms");
 
-            var result = await browser.Click(By.XPath(startAllButton.XPath), cancellationToken);
+            var result = await browser.Click(startAllButton, cancellationToken);
             if (result.IsFailed) return result;
 
             return Result.Ok();

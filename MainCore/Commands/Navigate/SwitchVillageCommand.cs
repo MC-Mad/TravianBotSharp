@@ -18,20 +18,13 @@
 
             if (VillagePanelParser.IsActive(node)) return Result.Ok();
 
-            bool villageChanged(IWebDriver driver)
+            bool villageChanged(HtmlDocument doc)
             {
-                var doc = new HtmlDocument();
-                doc.LoadHtml(driver.PageSource);
-
                 var villageNode = VillagePanelParser.GetVillageNode(doc, villageId);
                 return villageNode is not null && VillagePanelParser.IsActive(villageNode);
             }
 
-            Result result;
-            result = await browser.Click(By.XPath(node.XPath), cancellationToken);
-            if (result.IsFailed) return result;
-
-            result = await browser.Wait(villageChanged, cancellationToken);
+            var result = await browser.ClickAndWait(node, villageChanged, cancellationToken);
             if (result.IsFailed) return result;
 
             return Result.Ok();

@@ -59,7 +59,7 @@ namespace MainCore.Commands.Navigate
                 }
                 else
                 {
-                    result = await browser.Click(By.XPath(node.XPath), cancellationToken);
+                    result = await browser.Click(node, cancellationToken);
                     if (result.IsFailed) return result;
                 }
                 result = await browser.WaitPageChanged("build.php", cancellationToken);

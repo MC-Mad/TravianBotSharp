@@ -16,13 +16,13 @@ namespace MainCore.Commands.Features.DisableContextualHelp
             var option = OptionParser.GetHideContextualHelpOption(browser.Html);
             if (option is null) return Retry.NotFound("hide contextual help", "option");
 
-            var result = await browser.Click(By.XPath(option.XPath), cancellationToken);
+            var result = await browser.Click(option, cancellationToken);
             if (result.IsFailed) return result;
 
             var button = OptionParser.GetSubmitButton(browser.Html);
             if (button is null) return Retry.ButtonNotFound("submit");
 
-            result = await browser.Click(By.XPath(button.XPath), cancellationToken);
+            result = await browser.Click(button, cancellationToken);
             if (result.IsFailed) return result;
 
             return Result.Ok();

@@ -115,25 +115,21 @@ namespace MainCore.UI.ViewModels.UserControls
         [ReactiveCommand(CanExecute = nameof(_canExecute))]
         private async Task DeleteAccount()
         {
-            if (Accounts.SelectedItem is null)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "No account selected"));
-                return;
-            }
-            if (Accounts.SelectedItem is null) return;
+            var account = await GetSelectedAccount();
+            if (account is null) return;
 
-            var accountId = new AccountId(Accounts.SelectedItem.Id);
+            var accountId = new AccountId(account.Id);
             using var scope = _serviceScopeFactory.CreateScope(accountId);
 
             var taskManager = scope.ServiceProvider.GetRequiredService<ITaskManager>();
             var status = taskManager.GetStatus(accountId);
             if (status != StatusEnums.Offline)
             {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Account should be offline"));
+                await _dialogService.ShowWarning("Account should be offline");
                 return;
             }
 
-            var result = await _dialogService.ConfirmBox.Handle(new MessageBoxData("Information", $"Are you sure want to delete \n {Accounts.SelectedItem.Content}"));
+            var result = await _dialogService.ConfirmBox.Handle(new MessageBoxData("Information", $"Are you sure want to delete \n {account.Content}"));
             if (!result) return;
 
             var deleteCommand = scope.ServiceProvider.GetRequiredService<DeleteCommand.Handler>();
@@ -143,27 +139,24 @@ namespace MainCore.UI.ViewModels.UserControls
         [ReactiveCommand(CanExecute = nameof(_canExecute))]
         private async Task Login()
         {
-            if (Accounts.SelectedItem is null)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "No account selected"));
-                return;
-            }
+            var account = await GetSelectedAccount();
+            if (account is null) return;
 
-            var accountId = new AccountId(Accounts.SelectedItem.Id);
+            var accountId = new AccountId(account.Id);
             using var scope = _serviceScopeFactory.CreateScope(accountId);
 
             var settingService = scope.ServiceProvider.GetRequiredService<ISettingService>();
             var tribe = (TribeEnums)settingService.ByName(accountId, AccountSettingEnums.Tribe);
             if (tribe == TribeEnums.Any)
             {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Choose tribe first"));
+                await _dialogService.ShowWarning("Choose tribe first");
                 return;
             }
 
             var taskManager = scope.ServiceProvider.GetRequiredService<ITaskManager>();
             if (taskManager.GetStatus(accountId) != StatusEnums.Offline)
             {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Account should be offline"));
+                await _dialogService.ShowWarning("Account should be offline");
                 return;
             }
 
@@ -171,7 +164,7 @@ namespace MainCore.UI.ViewModels.UserControls
             var result = await getAccessQuery.HandleAsync(new(accountId));
             if (result.IsFailed)
             {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", result.ToString()));
+                await _dialogService.ShowWarning(result.ToString());
                 return;
             }
 
@@ -186,24 +179,21 @@ namespace MainCore.UI.ViewModels.UserControls
         [ReactiveCommand(CanExecute = nameof(_canExecute))]
         private async Task Logout()
         {
-            if (Accounts.SelectedItem is null)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "No account selected"));
-                return;
-            }
+            var account = await GetSelectedAccount();
+            if (account is null) return;
 
-            var accountId = new AccountId(Accounts.SelectedItem.Id);
+            var accountId = new AccountId(account.Id);
             var status = _taskManager.GetStatus(accountId);
             switch (status)
             {
                 case StatusEnums.Offline:
-                    await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "Account's browser is already closed"));
+                    await _dialogService.ShowWarning("Account's browser is already closed");
                     return;
 
                 case StatusEnums.Starting:
                 case StatusEnums.Pausing:
                 case StatusEnums.Stopping:
-                    await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", $"TBS is {status}. Please waiting"));
+                    await _dialogService.ShowWarning($"TBS is {status}. Please waiting");
                     return;
 
                 case StatusEnums.Online:
@@ -223,13 +213,10 @@ namespace MainCore.UI.ViewModels.UserControls
         [ReactiveCommand(CanExecute = nameof(_canExecute))]
         private async Task Pause()
         {
-            if (Accounts.SelectedItem is null)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "No account selected"));
-                return;
-            }
+            var account = await GetSelectedAccount();
+            if (account is null) return;
 
-            var accountId = new AccountId(Accounts.SelectedItem.Id);
+            var accountId = new AccountId(account.Id);
 
             var status = _taskManager.GetStatus(accountId);
             switch (status)
@@ -250,7 +237,7 @@ namespace MainCore.UI.ViewModels.UserControls
                 case StatusEnums.Starting:
                 case StatusEnums.Pausing:
                 case StatusEnums.Stopping:
-                    await _dialogService.MessageBox.Handle(new MessageBoxData("Information", $"Account is {status}"));
+                    await _dialogService.ShowInformation($"Account is {status}");
                     break;
 
                 default:
@@ -261,13 +248,10 @@ namespace MainCore.UI.ViewModels.UserControls
         [ReactiveCommand(CanExecute = nameof(_canExecute))]
         private async Task Restart()
         {
-            if (Accounts.SelectedItem is null)
-            {
-                await _dialogService.MessageBox.Handle(new MessageBoxData("Warning", "No account selected"));
-                return;
-            }
+            var account = await GetSelectedAccount();
+            if (account is null) return;
 
-            var accountId = new AccountId(Accounts.SelectedItem.Id);
+            var accountId = new AccountId(account.Id);
             var status = _taskManager.GetStatus(accountId);
 
             switch (status)
@@ -276,11 +260,11 @@ namespace MainCore.UI.ViewModels.UserControls
                 case StatusEnums.Starting:
                 case StatusEnums.Pausing:
                 case StatusEnums.Stopping:
-                    await _dialogService.MessageBox.Handle(new MessageBoxData("Information", $"Account is {status}"));
+                    await _dialogService.ShowInformation($"Account is {status}");
                     return;
 
                 case StatusEnums.Online:
-                    await _dialogService.MessageBox.Handle(new MessageBoxData("Information", "Account should be paused first"));
+                    await _dialogService.ShowInformation("Account should be paused first");
                     return;
 
                 case StatusEnums.Paused:
@@ -291,6 +275,13 @@ namespace MainCore.UI.ViewModels.UserControls
                     _taskManager.SetStatus(accountId, StatusEnums.Online);
                     return;
             }
+        }
+
+        private async Task<ListBoxItem?> GetSelectedAccount()
+        {
+            var account = Accounts.SelectedItem;
+            if (account is null) await _dialogService.ShowWarning("No account selected");
+            return account;
         }
 
         [ReactiveCommand]

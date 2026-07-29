@@ -15,17 +15,7 @@ namespace MainCore.Commands.Features.StartAdventure
             var adventure = AdventureParser.GetHeroAdventureButton(browser.Html);
             if (adventure is null) return Retry.ButtonNotFound("hero adventure");
 
-            static bool TableShow(IWebDriver driver)
-            {
-                var doc = new HtmlDocument();
-                doc.LoadHtml(driver.PageSource);
-                return AdventureParser.IsAdventurePage(doc);
-            }
-
-            var result = await browser.Click(By.XPath(adventure.XPath), cancellationToken);
-            if (result.IsFailed) return result;
-
-            result = await browser.WaitPageChanged("adventures", TableShow, cancellationToken);
+            var result = await browser.ClickAndWaitPageChanged(adventure, "adventures", AdventureParser.IsAdventurePage, cancellationToken);
             if (result.IsFailed) return result;
 
             return Result.Ok();
