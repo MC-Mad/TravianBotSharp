@@ -11,10 +11,12 @@ namespace MainCore.Services
         private readonly IConnectableObservable<INotification> _connectableObservable;
 
         private readonly ICustomServiceScopeFactory _serviceScopeFactory;
+        private readonly ILogger _logger;
 
-        public RxQueue(ICustomServiceScopeFactory serviceScopeFactory)
+        public RxQueue(ICustomServiceScopeFactory serviceScopeFactory, ILogger logger)
         {
             _serviceScopeFactory = serviceScopeFactory;
+            _logger = logger.ForContext<RxQueue>();
             _connectableObservable = _notifications.ObserveOn(Scheduler.Default).Publish();
             _connectableObservable.Connect();
         }
@@ -89,7 +91,17 @@ namespace MainCore.Services
 
         public void RegisterHandler<T>(Action<T> handleAction) where T : INotification
         {
-            _connectableObservable.OfType<T>().Subscribe(handleAction);
+            _connectableObservable.OfType<T>().Subscribe(notification =>
+            {
+                try
+                {
+                    handleAction(notification);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Error(ex, "Handler of {Notification} failed", typeof(T).Name);
+                }
+            });
         }
 
         public void RegisterCommand<T>(ReactiveCommand<T, Unit> command) where T : INotification

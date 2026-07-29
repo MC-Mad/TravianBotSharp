@@ -31,7 +31,8 @@ namespace MainCore.Commands.Navigate
                 {
                     var currentUrl = new Uri(browser.CurrentUrl);
                     var host = currentUrl.GetLeftPart(UriPartial.Authority);
-                    await browser.Navigate($"{host}/build.php?id={location}", cancellationToken);
+                    result = await browser.Navigate($"{host}/build.php?id={location}", cancellationToken);
+                    if (result.IsFailed) return result;
                 }
                 else
                 {

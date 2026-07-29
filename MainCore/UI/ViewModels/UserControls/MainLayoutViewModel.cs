@@ -177,10 +177,15 @@ namespace MainCore.UI.ViewModels.UserControls
 
             var loginCommand = scope.ServiceProvider.GetRequiredService<LoginCommand.Handler>();
 
-            await Observable.StartAsync(async () =>
+            var loginResult = await Observable.StartAsync(async () =>
             {
-                await loginCommand.HandleAsync(new(accountId, result.Value));
+                return await loginCommand.HandleAsync(new(accountId, result.Value));
             }, RxApp.TaskpoolScheduler);
+
+            if (loginResult.IsFailed)
+            {
+                await _dialogService.MessageBox.Handle(new MessageBoxData("Error", loginResult.ToString()));
+            }
         }
 
         [ReactiveCommand(CanExecute = nameof(_canExecute))]

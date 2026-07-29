@@ -42,8 +42,9 @@ namespace MainCore.Commands.Features.UpgradeBuilding
             var url = browser.CurrentUrl;
 
             result = await useHeroResourceCommand.HandleAsync(new(accountId, missingResource), cancellationToken);
-            await browser.Navigate(url, cancellationToken);
+            var navigateResult = await browser.Navigate(url, cancellationToken);
             if (result.IsFailed) return result;
+            if (navigateResult.IsFailed) return navigateResult;
 
             return Result.Ok();
         }

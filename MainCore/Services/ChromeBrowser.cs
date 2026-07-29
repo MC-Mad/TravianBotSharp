@@ -99,13 +99,22 @@ namespace MainCore.Services
 
         public ILogger Logger { get; set; } = null!;
 
-        public async Task<string> Screenshot()
+        public async Task<Result<string>> Screenshot()
         {
-            var screenshot = Driver?.GetScreenshot();
-            var fileName = Path.Combine(AppContext.BaseDirectory, "Screenshots", $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.png");
-            Directory.CreateDirectory(Path.GetDirectoryName(fileName)!);
-            await File.WriteAllBytesAsync(fileName, screenshot?.AsByteArray ?? Array.Empty<byte>(), CancellationToken.None);
-            return fileName;
+            if (Driver is null) return Stop.DriverNotReady;
+
+            try
+            {
+                var screenshot = Driver.GetScreenshot();
+                var fileName = Path.Combine(AppContext.BaseDirectory, "Screenshots", $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.png");
+                Directory.CreateDirectory(Path.GetDirectoryName(fileName)!);
+                await File.WriteAllBytesAsync(fileName, screenshot.AsByteArray, CancellationToken.None);
+                return fileName;
+            }
+            catch (Exception ex) when (ex is WebDriverException or IOException or UnauthorizedAccessException)
+            {
+                return Result.Fail(new Error("Cannot take screenshot").CausedBy(ex));
+            }
         }
 
         public async Task<Result> Refresh(CancellationToken cancellationToken)
@@ -163,12 +172,25 @@ namespace MainCore.Services
             if (Driver is null) return Stop.DriverNotReady;
             var (_, isFailed, element, errors) = await GetElement(by, cancellationToken);
             if (isFailed) return Result.Fail(errors);
-            await Task.Run(new Actions(Driver).Click(element).Perform);
+
+            try
+            {
+                await Task.Run(new Actions(Driver).Click(element).Perform, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                return Cancel.Error;
+            }
+            catch (WebDriverException ex)
+            {
+                return Retry.ElementNotClickable(by).CausedBy(ex);
+            }
             return Result.Ok();
         }
 
         public async Task<Result> Input(By by, string content, CancellationToken cancellationToken)
         {
+            if (Driver is null) return Stop.DriverNotReady;
             var (_, isFailed, element, errors) = await GetElement(by, cancellationToken);
             if (isFailed) return Result.Fail(errors);
 
@@ -179,7 +201,18 @@ namespace MainCore.Services
                 element.SendKeys(content);
             }
 
-            await Task.Run(input);
+            try
+            {
+                await Task.Run(input, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                return Cancel.Error;
+            }
+            catch (WebDriverException ex)
+            {
+                return Retry.BrowserError(ex.Message);
+            }
             return Result.Ok();
         }
 
@@ -187,8 +220,14 @@ namespace MainCore.Services
         {
             if (Driver is null) return Stop.DriverNotReady;
             await Task.CompletedTask;
-            var js = Driver as IJavaScriptExecutor;
-            js.ExecuteScript(javascript);
+            try
+            {
+                ((IJavaScriptExecutor)Driver).ExecuteScript(javascript);
+            }
+            catch (WebDriverException ex)
+            {
+                return Retry.BrowserError(ex.Message);
+            }
             return Result.Ok();
         }
 
