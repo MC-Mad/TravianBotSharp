@@ -51,7 +51,24 @@ namespace MainCore.Services
             }
 
             var userAgentJsonString = await File.ReadAllTextAsync(pathFile);
-            var modelLoaded = JsonSerializer.Deserialize<Model>(userAgentJsonString)!;
+
+            Model? modelLoaded;
+            try
+            {
+                modelLoaded = JsonSerializer.Deserialize<Model>(userAgentJsonString);
+            }
+            catch (JsonException ex)
+            {
+                _logger.Warning(ex, "User agent file is corrupted, redownloading.");
+                modelLoaded = null;
+            }
+
+            if (modelLoaded is null)
+            {
+                await Update();
+                return;
+            }
+
             _userAgentList = modelLoaded.UserAgentList;
             _dateTime = modelLoaded.DateTime;
 
@@ -64,6 +81,8 @@ namespace MainCore.Services
 
         public string Get()
         {
+            if (_userAgentList.Count == 0) throw new InvalidOperationException("User agent list is empty, cannot get user agent.");
+
             var index = rnd.Next(0, _userAgentList.Count - 1);
             var result = _userAgentList[index];
             _userAgentList.RemoveAt(index);

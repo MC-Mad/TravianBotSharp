@@ -5,7 +5,7 @@
     {
         public sealed record Command(AccountId AccountId, AccessDto Access) : IAccountCommand;
 
-        private static async ValueTask HandleAsync(
+        private static async ValueTask<Result> HandleAsync(
             Command command,
             IChromeBrowser browser, AppDbContext context,
             CancellationToken cancellationToken
@@ -42,11 +42,13 @@
             };
 
             await browser.Setup(chromeSetting);
-            await browser.Navigate($"{account.Server}", cancellationToken);
+            var result = await browser.Navigate($"{account.Server}", cancellationToken);
 
             context.Accesses
                .Where(x => x.Id == access.Id.Value)
                .ExecuteUpdate(x => x.SetProperty(x => x.LastUsed, x => DateTime.Now));
+
+            return result;
         }
     }
 }

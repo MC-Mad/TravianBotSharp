@@ -16,15 +16,17 @@ namespace MainCore.Services
         private readonly ITaskManager _taskManager;
         private readonly IRxQueue _rxQueue;
         private readonly ICustomServiceScopeFactory _serviceScopeFactory;
+        private readonly ILogger _logger;
 
         private static ResiliencePropertyKey<ContextData> contextDataKey = new(nameof(ContextData));
         private readonly ResiliencePipeline<Result> _pipeline;
 
-        public TimerManager(ITaskManager taskManager, ICustomServiceScopeFactory serviceScopeFactory, IRxQueue rxQueue)
+        public TimerManager(ITaskManager taskManager, ICustomServiceScopeFactory serviceScopeFactory, IRxQueue rxQueue, ILogger logger)
         {
             _taskManager = taskManager;
             _serviceScopeFactory = serviceScopeFactory;
             _rxQueue = rxQueue;
+            _logger = logger.ForContext<TimerManager>();
 
             Func<OnRetryArguments<Result>, ValueTask> OnRetry = async static args =>
             {
@@ -43,8 +45,7 @@ namespace MainCore.Services
                     var message = string.Join(Environment.NewLine, error.Result.Reasons.Select(e => e.Message));
                     if (!string.IsNullOrEmpty(message))
                     {
-                        browser.Logger.Warning("Task {TaskName} failed", taskName, message);
-                        browser.Logger.Warning("{Message}", message);
+                        browser.Logger.Warning("Task {TaskName} failed: {Message}", taskName, message);
                     }
                 }
 
@@ -128,8 +129,7 @@ namespace MainCore.Services
                 }
                 else
                 {
-                    var filename = await browser.Screenshot();
-                    logger.Information("Screenshot saved as {FileName}", filename);
+                    await LogScreenshot(browser);
                     logger.Warning("There is something wrong. Bot is pausing. Last exception is");
                     logger.Error(ex, "{Message}", ex.Message);
                 }
@@ -145,14 +145,12 @@ namespace MainCore.Services
                     var message = string.Join(Environment.NewLine, result.Reasons.Select(e => e.Message));
                     if (!string.IsNullOrEmpty(message))
                     {
-                        logger.Warning("Task {TaskName} failed", task.Description, message);
-                        logger.Warning("{Message}", message);
+                        logger.Warning("Task {TaskName} failed: {Message}", task.Description, message);
                     }
 
                     if (result.HasError<Stop>() || result.HasError<Retry>())
                     {
-                        var filename = await browser.Screenshot();
-                        logger.Information(messageTemplate: "Screenshot saved as {FileName}", filename);
+                        await LogScreenshot(browser);
                         _taskManager.SetStatus(accountId, StatusEnums.Paused);
                     }
                     else if (result.HasError<Skip>())
@@ -190,6 +188,18 @@ namespace MainCore.Services
             await delayService.DelayTask();
         }
 
+        private static async Task LogScreenshot(IChromeBrowser browser)
+        {
+            var screenshot = await browser.Screenshot();
+            if (screenshot.IsFailed)
+            {
+                var message = string.Join(Environment.NewLine, screenshot.Reasons.Select(e => e.Message));
+                browser.Logger.Warning("Cannot save screenshot: {Message}", message);
+                return;
+            }
+            browser.Logger.Information("Screenshot saved as {FileName}", screenshot.Value);
+        }
+
         public void Shutdown()
         {
             _isShutdown = true;
@@ -207,8 +217,19 @@ namespace MainCore.Services
                 timer.Elapsed += async (sender, e) =>
                 {
                     if (_isShutdown) return;
-                    await Execute(accountId);
-                    timer.Start();
+                    try
+                    {
+                        await Execute(accountId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error(ex, "Account {AccountId} loop failed, bot is pausing", accountId);
+                        _taskManager.SetStatus(accountId, StatusEnums.Paused);
+                    }
+                    finally
+                    {
+                        if (!_isShutdown) timer.Start();
+                    }
                 };
 
                 _timers.Add(accountId, timer);

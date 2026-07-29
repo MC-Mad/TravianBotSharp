@@ -35,7 +35,10 @@ namespace WPFUI
                 sp.GetRequiredService<IRxQueue>().Setup();
             });
 
-            host.RunAsync();
+            host.RunAsync()
+                .ContinueWith(
+                    task => Serilog.Log.Fatal(task.Exception, "Host terminated unexpectedly"),
+                    TaskContinuationOptions.OnlyOnFaulted);
         }
 
         private static void SetupDialogService(IServiceProvider serviceProvider)

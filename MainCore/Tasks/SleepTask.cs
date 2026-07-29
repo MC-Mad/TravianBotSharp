@@ -24,12 +24,15 @@ namespace MainCore.Tasks
             NextExecuteSleepTaskCommand.Handler nextExecuteSleepTaskCommand,
             CancellationToken cancellationToken)
         {
-            await sleepCommand.HandleAsync(new(task.AccountId), cancellationToken);
+            var result = await sleepCommand.HandleAsync(new(task.AccountId), cancellationToken);
+            if (result.IsFailed) return result;
 
             var (_, isFailed, access, errors) = await getAccessQuery.HandleAsync(new(task.AccountId), cancellationToken);
             if (isFailed) return Result.Fail(errors);
 
-            await openBrowserCommand.HandleAsync(new(task.AccountId, access), cancellationToken);
+            result = await openBrowserCommand.HandleAsync(new(task.AccountId, access), cancellationToken);
+            if (result.IsFailed) return result;
+
             await nextExecuteSleepTaskCommand.HandleAsync(new(task), cancellationToken);
             return Result.Ok();
         }

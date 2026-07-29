@@ -42,8 +42,19 @@ namespace WPFUI.Views
         {
             if (_isLoaded) return;
             _isLoaded = false;
-            await ViewModel.LoadCommand.Execute();
-            _isLoaded = true;
+            try
+            {
+                await ViewModel.LoadCommand.Execute();
+            }
+            catch (Exception ex)
+            {
+                Serilog.Log.Error(ex, "Cannot load main window");
+                MessageBox.Show("There is something wrong while loading. Please check logs/log-Other.txt.", "Error");
+            }
+            finally
+            {
+                _isLoaded = true;
+            }
         }
 
         private async void OnClosing(object sender, CancelEventArgs e)
@@ -59,7 +70,14 @@ namespace WPFUI.Views
             if (_isClosing) return;
             _isClosing = true;
 
-            await ViewModel.UnloadCommand.Execute();
+            try
+            {
+                await ViewModel.UnloadCommand.Execute();
+            }
+            catch (Exception ex)
+            {
+                Serilog.Log.Error(ex, "Cannot shutdown gracefully");
+            }
 
             _canClose = true;
             Close();
